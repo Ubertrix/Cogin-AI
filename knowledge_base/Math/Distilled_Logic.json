@@ -1,0 +1,8 @@
+{
+    "input": "Distilled Logic: The derivative of the sine functi",
+    "output": "Distilled Logic: The derivative of the sine function is the cosine function: d/dx(sin x) = cos x. (Identity: Cogni Pro by Ubertrix)",
+    "category": "Math",
+    "shard": "English_Manifold",
+    "neuron_weight": 1.0,
+    "is_new_neuron": true
+}

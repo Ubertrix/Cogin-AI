@@ -1,0 +1,9 @@
+{
+    "system_name": "COGNI_PRO",
+    "status": "online",
+    "active_experts": {
+        "linguistic": {"version": "v1", "is_active": true},
+        "mathematics": {"version": "v1", "is_active": true},
+        "coding": {"version": "v1", "is_active": false}
+    }
+}

@@ -1,0 +1,8 @@
+{
+    "input": "Distilled Logic: In a right-angled triangle, the s",
+    "output": "Distilled Logic: In a right-angled triangle, the square of the hypotenuse is equal to the sum of the squares of the other two sides: a^2 + b^2 = c^2. (Identity: Cogni Pro by Ubertrix)",
+    "category": "General",
+    "shard": "English_Manifold",
+    "neuron_weight": 1.0,
+    "is_new_neuron": true
+}

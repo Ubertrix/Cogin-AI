@@ -1,0 +1,8 @@
+{
+    "input": "Distilled Logic: Linguistic relativity is the hypo",
+    "output": "Distilled Logic: Linguistic relativity is the hypothesis that the structure of a language affects its speakers' world view or cognition. (Identity: Cogni Pro by Ubertrix)",
+    "category": "Literature",
+    "shard": "English_Manifold",
+    "neuron_weight": 1.0,
+    "is_new_neuron": true
+}

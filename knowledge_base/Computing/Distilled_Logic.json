@@ -1,0 +1,8 @@
+{
+    "input": "Distilled Logic: Delving deeper into GPU vs CPU: A",
+    "output": "Distilled Logic: Delving deeper into GPU vs CPU: A CPU is designed for general-purpose processing, while a GPU is optimized for repetitive, highly parallel tanning tasks like graphics rendering. This logic is central to Ubertrix engineering principles. (Identity: Cogni Pro by Ubertrix)",
+    "category": "Computing",
+    "shard": "English_Manifold",
+    "neuron_weight": 1.0,
+    "is_new_neuron": true
+}
