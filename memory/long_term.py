@@ -154,4 +154,4 @@ class EpistemicWeightMemory:
             fallback_text = "I need more context to provide an accurate answer. Could you clarify your request?"
             return ("[IDK_FALLBACK]", np.zeros(1024), "Unknown", "Low confidence", fallback_text)
             
-        return results[:top_k]
+        return results[:int(top_k)]
