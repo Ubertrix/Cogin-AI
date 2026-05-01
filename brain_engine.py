@@ -18,6 +18,8 @@ from experts_pool.expanded_experts import ScienceExpert, LiteratureExpert, Indus
 from knowledge_base.v3_scraper import CogniScraperV3
 from tools.web_ingestor import WebIngestor
 from tools.speech_engine import SpeechEngine
+from tools.live_search import LiveSearchTool
+from memory.dynamic_storage import DynamicStorageModule
 from dictionary.tokenizer import Tokenizer
 from kernel.layers.embedding import EmbeddingLayer
 from kernel.layers.attention import SelfAttention
@@ -96,6 +98,8 @@ class CogniPro:
         self.sequencer = SequenceGenerator(self.inference_head, self.tokenizer, self.genesis, self.short_term, self.embedding_layer, self.attention)
         self.reasoner = ReasoningEngine()
         self.speech = SpeechEngine()
+        self.live_search = LiveSearchTool()
+        self.dynamic_storage = DynamicStorageModule()
         
         print("Cogni Pro v5.5: Neural Engine Online (Generative Mode).")
 
@@ -147,7 +151,19 @@ class CogniPro:
             query_text=input_text, query_vector=input_vector, filter_category=expert.name, allow_canned=True
         )
         
-        # If we found a match in the trained data
+        # 3. Live Search & Self-Learning (If confidence is low or query is factual)
+        if confidence < 0.8 or any(w in lower for w in ["what is", "who is", "latest", "search"]):
+            search_result = self.live_search.search(input_text)
+            if search_result:
+                print(f"   [SELF_LEARNING] New information found. Training system...")
+                self.ingestion_engine.distill_text(search_result, source="LiveSearch")
+                self.dynamic_storage.save_knowledge(input_text, search_result, input_vector)
+                # Re-retrieve after learning
+                ret_data = self.long_term.retrieve(
+                    query_text=input_text, query_vector=input_vector, filter_category=expert.name, allow_canned=True
+                )
+
+        # 4. Retrieval & Generation (General Path)
         if isinstance(ret_data, tuple) and len(ret_data) >= 5 and ret_data[4]:
             knowledge_content = ret_data[4]
             # Always prioritize retrieved knowledge if it exists after massive training
