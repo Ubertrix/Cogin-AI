@@ -17,6 +17,7 @@ from experts_pool.coding.logic import CodingExpert
 from experts_pool.expanded_experts import ScienceExpert, LiteratureExpert, IndustryExpert, FinanceExpert, ComputingExpert
 from knowledge_base.v3_scraper import CogniScraperV3
 from tools.web_ingestor import WebIngestor
+from tools.speech_engine import SpeechEngine
 from dictionary.tokenizer import Tokenizer
 from kernel.layers.embedding import EmbeddingLayer
 from kernel.layers.attention import SelfAttention
@@ -25,6 +26,7 @@ from memory.long_term import EpistemicWeightMemory
 from registry.config import SystemConfig
 from kernel.inference_head import InferenceHead
 from kernel.sequencer import SequenceGenerator
+from kernel.ops.reasoning_engine import ReasoningEngine
 
 class IngestionEngine:
     """V3 Multi-Expert Distillation Engine."""
@@ -92,6 +94,8 @@ class CogniPro:
         self.attention = SelfAttention(d_model=d_model)
         self.inference_head = InferenceHead(self.d_model, self.tokenizer.vocab_size, self.tokenizer, self.embedding_layer.embeddings)
         self.sequencer = SequenceGenerator(self.inference_head, self.tokenizer, self.genesis, self.short_term, self.embedding_layer, self.attention)
+        self.reasoner = ReasoningEngine()
+        self.speech = SpeechEngine()
         
         print("Cogni Pro v5.5: Neural Engine Online (Generative Mode).")
 
@@ -130,8 +134,12 @@ class CogniPro:
         if any(w in lower for w in ["hello", "hi", "مرحبا", "اهلا"]):
             return "Hello! I am Cogni Pro. How can I assist you today?", 1.0
 
-        # 2. Retrieval & Generation (General Path)
+        # 2. Logical Reasoning (Chain of Thought)
         input_vector = self.get_sentence_vector(input_text)
+        thought_steps = self.reasoner.reason(input_text, input_vector)
+        print(f"   [THOUGHT] {self.reasoner.get_thought_process()}")
+
+        # 3. Retrieval & Generation (General Path)
         expert, confidence = self.router.route(input_vector, self.experts, input_text=input_text)
         
         # Try to retrieve from long-term memory
@@ -143,7 +151,9 @@ class CogniPro:
         if isinstance(ret_data, tuple) and len(ret_data) >= 5 and ret_data[4]:
             knowledge_content = ret_data[4]
             # Always prioritize retrieved knowledge if it exists after massive training
-            return self.synthesis.synthesize(input_text, knowledge_content), 0.95
+            final_response = self.synthesis.synthesize(input_text, knowledge_content)
+            self.speech.speak(final_response)
+            return final_response, 0.95
         
         # Pure Generation Fallback
         try:
@@ -152,6 +162,7 @@ class CogniPro:
                 max_tokens=40, temperature=0.7
             )
             final_response = self.synthesis.synthesize(input_text, gen_text)
+            self.speech.speak(final_response)
             return final_response, float(gen_conf)
         except:
             return "I am processing your request. Please provide more details.", 0.5

@@ -50,9 +50,10 @@ class SequenceGenerator:
             if i > min_length and token_str in self.stop_tokens:
                 break
             
-            # 4. Update current vector
+            # 4. Update current vector with Logical Context
             token_emb = self.embedding_layer.forward([token_id])
-            current_vector = 0.7 * current_vector + 0.3 * token_emb
+            # v5.5: Dynamic context update (0.6 Old / 0.4 New) for better logical flow
+            current_vector = 0.6 * current_vector + 0.4 * token_emb
             
             if i % 10 == 0:
                 gc.collect()
