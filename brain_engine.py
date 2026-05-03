@@ -163,10 +163,26 @@ class CogniPro:
                     query_text=input_text, query_vector=input_vector, filter_category=expert.name, allow_canned=True
                 )
 
-        # 4. Retrieval & Generation (General Path)
+        # 3. Decision Logic: Local Retrieval vs Live Search
+        knowledge_content = None
         if isinstance(ret_data, tuple) and len(ret_data) >= 5 and ret_data[4]:
             knowledge_content = ret_data[4]
-            # Always prioritize retrieved knowledge if it exists after massive training
+            print(f"   [MEMORY] Knowledge found in local memory.")
+        
+        # 4. Trigger Live Search & Self-Learning if local knowledge is missing or insufficient
+        if not knowledge_content or confidence < 0.6:
+            print(f"   [MEMORY] Local knowledge insufficient. Triggering Live Search...")
+            search_result = self.live_search.search(input_text)
+            if search_result:
+                print(f"   [SELF_LEARNING] New information found. Training system...")
+                self.ingestion_engine.distill_text(search_result, source="LiveSearch")
+                self.dynamic_storage.save_knowledge(input_text, search_result, input_vector)
+                knowledge_content = search_result
+            else:
+                print(f"   [SEARCH] No live information found. Falling back to pure generation.")
+
+        # 5. Final Synthesis & Response
+        if knowledge_content:
             final_response = self.synthesis.synthesize(input_text, knowledge_content)
             self.speech.speak(final_response)
             return final_response, 0.95
@@ -181,7 +197,7 @@ class CogniPro:
             self.speech.speak(final_response)
             return final_response, float(gen_conf)
         except:
-            return "I am processing your request. Please provide more details.", 0.5
+            return "I am processing your request. Please provide more details.", 0.55
 
     def display_neural_report(self):
         """Display system status report."""
