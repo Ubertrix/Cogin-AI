@@ -1,0 +1,17 @@
+{
+    "layer_params": {
+        "Embedding": 92160,
+        "Attention": 4194304,
+        "Experts": 8388608,
+        "Router": 8192,
+        "Inference_Head": 92160,
+        "Memory_Anchors": 741376
+    },
+    "total_params": 13516800,
+    "metadata": {
+        "d_model": 1024,
+        "vocab_size": 90,
+        "num_experts": 8,
+        "num_anchors": 724
+    }
+}
