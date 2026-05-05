@@ -19,6 +19,9 @@ from tools.web_ingestor import WebIngestor
 from tools.speech_engine import SpeechEngine
 from tools.live_search import LiveSearchTool
 from memory.dynamic_storage import DynamicStorageModule
+from tools.github_fetcher import GitHubFetcher
+from tools.code_learner import CodeLearner
+import re
 from dictionary.tokenizer import Tokenizer
 from kernel.layers.embedding import EmbeddingLayer
 from kernel.layers.attention import SelfAttention
@@ -99,6 +102,8 @@ class CogniPro:
         self.speech = SpeechEngine()
         self.live_search = LiveSearchTool()
         self.dynamic_storage = DynamicStorageModule()
+        self.github_fetcher = GitHubFetcher()
+        self.code_learner = CodeLearner(self)
 
     def get_sentence_vector(self, text):
         tokens = self.tokenizer.encode(text)
@@ -118,6 +123,21 @@ class CogniPro:
         """
         # 1. Vectorize Input
         input_vector = self.get_sentence_vector(input_text)
+
+        # 1.5 Check for GitHub Links
+        github_match = re.search(r'github\.com/([\w-]+/[\w.-]+)', input_text)
+        if github_match:
+            repo_path = github_match.group(1)
+            # Try to extract file path if present
+            file_match = re.search(r'blob/[\w-]+/(.+)', input_text)
+            file_path = file_match.group(1) if file_match else ""
+            
+            repo_data = self.github_fetcher.fetch_repo_code(repo_path, file_path)
+            if repo_data:
+                for item in repo_data:
+                    lang = self.github_fetcher.detect_language(item['name'], item['content'])
+                    self.code_learner.learn_from_code(item['name'], item['content'], lang)
+                return f"I have successfully accessed the GitHub repository '{repo_path}', analyzed the code, and integrated the patterns into my knowledge base. I am now ready to help you with this codebase.", 1.0
         
         # 2. Expert Routing
         expert, confidence = self.router.route(input_vector, self.experts, input_text=input_text)
@@ -125,17 +145,29 @@ class CogniPro:
         # 3. Reasoning Phase (Chain of Thought)
         self.reasoner.reason(input_text, input_vector)
         
-        # 4. Retrieval & Search Logic
-        ret_data = self.long_term.retrieve(
-            query_text=input_text, query_vector=input_vector, filter_category=expert.name
-        )
-        
+        # 4. Memory Retrieval & Search Logic
         knowledge_content = None
-        if isinstance(ret_data, tuple) and len(ret_data) >= 5 and ret_data[4]:
-            # Ensure it's not a canned response
-            if "I need more context" not in ret_data[4]:
-                knowledge_content = ret_data[4]
-                print(f"   [MEMORY] Knowledge found in local memory.")
+        
+        # Try to find code patterns first if it's a coding query
+        if expert.name == "Coding":
+            code_ret = self.long_term.retrieve(
+                query_text=input_text, query_vector=input_vector, filter_category="Coding"
+            )
+            if code_ret and isinstance(code_ret, tuple) and len(code_ret) >= 5 and code_ret[4]:
+                knowledge_content = code_ret[4]
+                print(f"   [MEMORY] Code pattern found in local memory.")
+
+        ret_data = None
+        if not knowledge_content:
+            ret_data = self.long_term.retrieve(
+                query_text=input_text, query_vector=input_vector, filter_category=expert.name
+            )
+        
+            if isinstance(ret_data, tuple) and len(ret_data) >= 5 and ret_data[4]:
+                # Ensure it's not a canned response
+                if "I need more context" not in ret_data[4]:
+                    knowledge_content = ret_data[4]
+                    print(f"   [MEMORY] Knowledge found in local memory.")
         
         # 5. Trigger Live Search if needed
         if not knowledge_content:
