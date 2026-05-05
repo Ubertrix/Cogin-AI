@@ -1,4 +1,3 @@
-import sys
 import os
 import re
 import numpy as np
@@ -38,7 +37,7 @@ class IngestionEngine:
         self.web_tools = WebIngestor(scraper=self.scraper)
 
     def distill_text(self, text, source="Web", category=None):
-        """v5.5 Non-Destructive Ingestion: Delta-Weight additive update only."""
+        """v6.0 Real-time Knowledge Distillation."""
         if not text: return
         
         # Expand vocabulary
@@ -67,8 +66,8 @@ class IngestionEngine:
 
 class CogniPro:
     """
-    Cogni Pro v5.5 Brain Engine.
-    Pure Generative Mode (No Canned Responses).
+    Cogni Pro v6.0 Brain Engine.
+    True Autoregressive Generation & Self-Learning.
     """
     def __init__(self, d_model=1024):
         self.d_model = d_model
@@ -100,109 +99,73 @@ class CogniPro:
         self.speech = SpeechEngine()
         self.live_search = LiveSearchTool()
         self.dynamic_storage = DynamicStorageModule()
-        
-        print("Cogni Pro v5.5: Neural Engine Online (Generative Mode).")
 
     def get_sentence_vector(self, text):
-        """Vectorize input text using embedding and attention layers."""
         tokens = self.tokenizer.encode(text)
-        if not tokens: return np.zeros((1, self.d_model))
-        embeddings = self.embedding_layer.forward(np.array(tokens))
-        attended, _ = self.attention.forward(embeddings)
-        return np.mean(attended, axis=0, keepdims=True)
+        if not tokens: return np.zeros(self.d_model)
+        embs = self.embedding_layer.forward(tokens)
+        return np.mean(embs, axis=0)
 
-    def supervised_expert_update(self, category, vector, lr=0.1):
-        """Update expert weights based on category."""
-        expert_map = {
-            "Linguistic": 0, "Math": 1, "Coding": 2,
-            "Science": 3, "Literature": 4, "Industry": 5,
-            "Finance": 6, "Computing": 7
-        }
-        idx = expert_map.get(category, 0)
-        if idx < len(self.experts):
-            target_expert = self.experts[idx]
-            if hasattr(target_expert, 'distill'):
-                target_expert.distill(vector, vector, lr=lr) 
-            self.router.train_router(idx, vector, lr=lr * 2)
+    def supervised_expert_update(self, category, vector):
+        for expert in self.experts:
+            if expert.name.lower() == category.lower():
+                # Use distill for weight updates
+                expert.distill(vector, vector)
 
     def process(self, input_text):
-        """Main processing pipeline for user input."""
-        if not input_text: return "Please provide input.", 0.0
-        
-        lower = input_text.lower()
-        
-        # 1. Identity & Greetings (Smart Overrides)
-        if any(w in lower for w in ["who are you", "your name", "من أنت", "ما اسمك"]):
-            return "I am Cogni Pro, an advanced AI system developed by Ubertrix LLC. I can help you with coding, science, math, and logical analysis.", 1.0
-        
-        if any(w in lower for w in ["hello", "hi", "مرحبا", "اهلا"]):
-            return "Hello! I am Cogni Pro. How can I assist you today?", 1.0
-
-        # 2. Logical Reasoning (Chain of Thought)
+        """
+        Main processing loop: Reasoning -> Retrieval/Search -> Learning -> Generation.
+        """
+        # 1. Vectorize Input
         input_vector = self.get_sentence_vector(input_text)
-        thought_steps = self.reasoner.reason(input_text, input_vector)
-        print(f"   [THOUGHT] {self.reasoner.get_thought_process()}")
-
-        # 3. Retrieval & Generation (General Path)
+        
+        # 2. Expert Routing
         expert, confidence = self.router.route(input_vector, self.experts, input_text=input_text)
         
-        # Try to retrieve from long-term memory
+        # 3. Reasoning Phase (Chain of Thought)
+        self.reasoner.reason(input_text, input_vector)
+        
+        # 4. Retrieval & Search Logic
         ret_data = self.long_term.retrieve(
-            query_text=input_text, query_vector=input_vector, filter_category=expert.name, allow_canned=True
+            query_text=input_text, query_vector=input_vector, filter_category=expert.name
         )
         
-        # 3. Live Search & Self-Learning (If confidence is low or query is factual)
-        if confidence < 0.8 or any(w in lower for w in ["what is", "who is", "latest", "search"]):
-            search_result = self.live_search.search(input_text)
-            if search_result:
-                print(f"   [SELF_LEARNING] New information found. Training system...")
-                self.ingestion_engine.distill_text(search_result, source="LiveSearch")
-                self.dynamic_storage.save_knowledge(input_text, search_result, input_vector)
-                # Re-retrieve after learning
-                ret_data = self.long_term.retrieve(
-                    query_text=input_text, query_vector=input_vector, filter_category=expert.name, allow_canned=True
-                )
-
-        # 3. Decision Logic: Local Retrieval vs Live Search
         knowledge_content = None
         if isinstance(ret_data, tuple) and len(ret_data) >= 5 and ret_data[4]:
-            knowledge_content = ret_data[4]
-            print(f"   [MEMORY] Knowledge found in local memory.")
+            # Ensure it's not a canned response
+            if "I need more context" not in ret_data[4]:
+                knowledge_content = ret_data[4]
+                print(f"   [MEMORY] Knowledge found in local memory.")
         
-        # 4. Trigger Live Search & Self-Learning if local knowledge is missing or insufficient
-        if not knowledge_content or confidence < 0.6:
-            print(f"   [MEMORY] Local knowledge insufficient. Triggering Live Search...")
+        # 5. Trigger Live Search if needed
+        if not knowledge_content:
+            print(f"   [MEMORY] No local knowledge. Triggering Live Search...")
             search_result = self.live_search.search(input_text)
             if search_result:
-                print(f"   [SELF_LEARNING] New information found. Training system...")
+                print(f"   [SELF_LEARNING] Learning new information...")
                 self.ingestion_engine.distill_text(search_result, source="LiveSearch")
                 self.dynamic_storage.save_knowledge(input_text, search_result, input_vector)
                 knowledge_content = search_result
             else:
                 print(f"   [SEARCH] No live information found. Falling back to pure generation.")
 
-        # 5. Final Synthesis & Response
-        if knowledge_content:
-            final_response = self.synthesis.synthesize(input_text, knowledge_content)
-            self.speech.speak(final_response)
-            return final_response, 0.95
-        
-        # Pure Generation Fallback
+        # 6. Hybrid Autoregressive Generation
         try:
             gen_text, gen_conf = self.sequencer.generate(
-                input_vector, expert.name, input_text=input_text,
-                max_tokens=40, temperature=0.7
+                input_vector, expert.name, 
+                input_text=input_text,
+                retrieved_memory_text=knowledge_content,
+                max_tokens=100, temperature=0.8
             )
+            
+            # Final Synthesis
             final_response = self.synthesis.synthesize(input_text, gen_text)
+            
             self.speech.speak(final_response)
             return final_response, float(gen_conf)
-        except:
-            return "I am processing your request. Please provide more details.", 0.55
+        except Exception as e:
+            print(f"   [Generation Error] {e}")
+            return "I am Cogni Pro, an AI system. I am currently processing your request.", 0.5
 
     def display_neural_report(self):
-        """Display system status report."""
-        print(f"Cogni Pro v5.5 | Anchors: {len(self.long_term.knowledge_base)} | Vocab: {len(self.tokenizer.word2id)}")
-
-    def train_knowledge(self, samples):
-        """Placeholder for knowledge training."""
-        pass
+        print(f"Cogni Pro v6.0 | Anchors: {len(self.long_term.knowledge_base)} | Vocab: {len(self.tokenizer.word2id)}")
